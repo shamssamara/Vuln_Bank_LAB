@@ -17,6 +17,33 @@ It allows security students, penetration testers, and researchers to investigate
 
 ---
 
+
+
+## 📱 Application Screenshots
+
+### Login & Dashboard
+| Login Screen | Banking Dashboard |
+|:---:|:---:|
+| <img src="docs/screenshots/login.png" width="260"> | <img src="docs/screenshots/dashboard.png" width="260"> |
+
+### Money Transfer & Transactions
+| Transfer Money | Transaction History |
+|:---:|:---:|
+| <img src="docs/screenshots/transfer.png" width="260"> | <img src="docs/screenshots/transactions.png" width="260"> |
+
+### API Security Lab
+<p align="center">
+  <img src="docs/screenshots/api-lab.png" width="280">
+</p>
+
+Explore account endpoints, inspect API responses, and practice
+mobile and API penetration testing in an isolated lab.
+
+
+
+
+
+
 ## ✨ Features
 
 ### Premium Android Banking Interface
