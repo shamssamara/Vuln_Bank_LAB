@@ -1,0 +1,8 @@
+.gradle
+.idea
+**/build
+**/.gradle
+**/local.properties
+.git
+*.zip
+app/src/main/res/raw/vulnbank_lab_ca.pem

