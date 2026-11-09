@@ -42,6 +42,7 @@ Users can choose between an intentionally insecure **Vulnerable Mode** and a sep
 *The replayed request returns `"replayed": true` and the original transfer ID without a second debit. The demo Bearer token in the screenshot is redacted.*
 
 > GitHub renders the images above from `docs/screenshots/`. If an image is missing, verify its exact filename and that the file is committed to the repository's current branch.
+<img width="221" height="491" alt="image" src="https://github.com/user-attachments/assets/7640db74-56bb-4b0c-a809-f025abe60645" />
 
 ---
 
