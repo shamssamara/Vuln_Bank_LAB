@@ -33,10 +33,11 @@ def call(path, *, body=None, with_key=False):
 try:
     status,health=call('/health')
     assert status == 200 and health.get('status')=='ok', f'Health failed: {status} {health}'
-    assert health.get('backendVersion')=='2026.11-recipient-transfer-fix', (
+    assert health.get('backendVersion') in ('2026.11-recipient-transfer-fix', '2026.11-dual-mode-replay'), (
         'Old server image is running! Use: docker compose up -d --build --force-recreate server'
     )
-    print('[PASS] Fresh Kotlin backend is running (HTTP :8080).')
+    assert health.get('securityMode', 'vulnerable')=='vulnerable', 'Wrong service on :8080'
+    print('[PASS] Fresh vulnerable Kotlin backend is running (HTTP :8080).')
     status,people=call('/api/v1/recipients',with_key=True)
     assert status == 200, f'Recipient endpoint returned HTTP {status}: {people}. Rebuild the server image.'
     assert isinstance(people,list) and len(people)>=2, f'Directory empty or invalid: {people}'

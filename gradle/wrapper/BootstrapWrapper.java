@@ -70,11 +70,15 @@ public final class BootstrapWrapper {
             }
             if (!windows) executable.toFile().setExecutable(true, false);
         }
+        // Use the launcher directly. On some Windows installations gradle.bat
+        // expands -classpath incorrectly ("-classpath requires class path specification").
+        Path launcher = installed.resolve("lib").resolve("gradle-launcher-" + version + ".jar");
+        if (!Files.isRegularFile(launcher)) throw new IOException("Missing Gradle launcher JAR: " + launcher);
         List<String> command = new ArrayList<>();
-        if (windows) {
-            command.add("cmd.exe"); command.add("/c");
-        }
-        command.add(executable.toString());
+        command.add(Paths.get(System.getProperty("java.home"), "bin", windows ? "java.exe" : "java").toString());
+        command.add("-cp");
+        command.add(launcher.toString());
+        command.add("org.gradle.launcher.GradleMain");
         command.addAll(Arrays.asList(args));
         Process process = new ProcessBuilder(command).directory(root.toFile()).inheritIO().start();
         int status = process.waitFor();

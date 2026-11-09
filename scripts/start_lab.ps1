@@ -1,11 +1,11 @@
 $ErrorActionPreference = 'Stop'
 Set-Location (Resolve-Path (Join-Path $PSScriptRoot '..'))
-Write-Host 'Starting isolated local VulnBank containers...' -ForegroundColor Cyan
+Write-Host 'Starting both local VulnBank backends...' -ForegroundColor Cyan
 docker compose up -d --build
-if ($LASTEXITCODE -ne 0) { throw 'Docker Compose failed; check logs.' }
+if ($LASTEXITCODE -ne 0) { throw 'Docker Compose failed. Run docker compose logs --tail=100' }
 docker compose ps
-Write-Host ''
-Write-Host 'Verify updated recipient and transfer API without changing balances:' -ForegroundColor Green
-python .\scripts\verify_update.py
-Write-Host ''
-Write-Host 'Android Emulator -> Burp: 10.0.2.2:8081; Burp -> backend: 127.0.0.1:8080'
+Write-Host 'Validating Vulnerable and Secure APIs...' -ForegroundColor Green
+python .\scripts\verify_dual_mode.py
+if ($LASTEXITCODE -ne 0) { throw 'Dual-mode API verification failed.' }
+Write-Host 'Vulnerable: Burp 127.0.0.1:8081 -> backend 127.0.0.1:8080'
+Write-Host 'Secure: emulator -> backend 10.0.2.2:8082 (no Burp)'

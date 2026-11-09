@@ -15,9 +15,6 @@ import io.ktor.server.routing.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
-import java.io.File
-import java.io.FileInputStream
-import java.security.KeyStore
 import java.sql.ResultSet
 import java.util.UUID
 import java.math.BigDecimal
@@ -63,13 +60,14 @@ private val sessions = ConcurrentHashMap<String, Long>()
     val fromUsername: String = "",
     val toUsername: String = "",
     val fromFullName: String = "",
-    val toFullName: String = ""
+    val toFullName: String = "",
+    val replayed: Boolean = false
 )
 @Serializable data class TicketRequest(val userId: Long?, val subject: String, val message: String)
 @Serializable data class Ticket(val id: Long, val userId: Long?, val subject: String, val message: String, val createdAt: String)
 @Serializable data class TicketCreated(val success: Boolean, val ticketId: Long)
 @Serializable data class ApiError(val error: String)
-@Serializable data class Health(val status: String, val labMode: Boolean, val warning: String, val backendVersion: String)
+@Serializable data class Health(val status: String, val labMode: Boolean, val warning: String, val backendVersion: String, val securityMode: String)
 
 private fun ResultSet.customer(): Customer = Customer(
     getLong("id"), getString("username"), getString("full_name"), getString("email"),
@@ -97,39 +95,16 @@ private fun db(): HikariDataSource {
 }
 
 fun main() {
-    val keyPath = File(System.getenv("CERT_PATH") ?: "server/certs/server.p12")
-    val password = System.getenv("CERT_PASSWORD") ?: "lab-changeit"
-    require(keyPath.exists()) { "Missing demo TLS certificate: $keyPath" }
-    val keyStore = KeyStore.getInstance("PKCS12").apply {
-        FileInputStream(keyPath).use { load(it, password.toCharArray()) }
-    }
-    embeddedServer(
-        Netty,
-        applicationEnvironment { log = LoggerFactory.getLogger("VulnBank") },
-        {
-            // Local HTTP listener for Burp interception without CA certificates or Frida.
-            // Docker publishes this listener on Windows loopback only.
-            connector {
-                host = "0.0.0.0"
-                port = 8080
-            }
-            sslConnector(
-                keyStore = keyStore,
-                keyAlias = "vulnbank",
-                keyStorePassword = { password.toCharArray() },
-                privateKeyPassword = { password.toCharArray() }
-            ) {
-                host = "0.0.0.0" // inside container only; host publishes 127.0.0.1:8443
-                port = 8443
-                keyStorePath = keyPath
-            }
-        },
-        module = Application::module
-    ).start(wait = true)
+    // HTTP listeners are published to Windows loopback only by Docker Compose.
+    // The hardened comparison mode still uses unencrypted HTTP for this local lab;
+    // do not deploy or claim transport security outside this isolated environment.
+    embeddedServer(Netty, host = "0.0.0.0", port = 8080, module = Application::module)
+        .start(wait = true)
 }
 
 fun Application.module() {
     val dataSource = db()
+    val secureMode = System.getenv("LAB_MODE").equals("secure", ignoreCase = true)
     // This runs for existing Docker PostgreSQL volumes too. No database reset required.
     dataSource.connection.use { conn ->
         conn.createStatement().use { statement ->
@@ -153,8 +128,12 @@ fun Application.module() {
             call.respond(HttpStatusCode.InternalServerError, ApiError("Lab backend error: check server logs"))
         }
     }
+    if (secureMode) {
+        routing { secureRoutes(dataSource) }
+        return
+    }
     routing {
-        get("/health") { call.respond(Health("ok", true, "LOCAL TRAINING ONLY - ALL DATA SYNTHETIC", "2026.11-recipient-transfer-fix")) }
+        get("/health") { call.respond(Health("ok", true, "INTENTIONALLY VULNERABLE - LOCAL TRAINING ONLY", "2026.11-dual-mode-replay", "vulnerable")) }
         route("/api/v1") {
             post("/auth/login") {
                 val request = call.receive<LoginRequest>()

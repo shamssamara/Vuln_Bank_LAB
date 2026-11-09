@@ -32,6 +32,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.vulnbank.lab.network.BankApi
+import com.vulnbank.lab.network.LabMode
+import java.util.UUID
 import com.vulnbank.lab.network.DemoCustomer
 import com.vulnbank.lab.network.DemoTicket
 import com.vulnbank.lab.network.DemoAccount
@@ -51,10 +53,11 @@ private val tabs = listOf("Home", "Transfer", "Support", "API Lab", "More")
 @Composable fun VulnBankApp() {
     BankTheme {
         val context = LocalContext.current
-        val api = remember { BankApi() }
+        var selectedMode by remember { mutableStateOf<LabMode?>(null) }
+        val api = remember(selectedMode) { BankApi(selectedMode ?: LabMode.VULNERABLE) }
         val scope = rememberCoroutineScope()
         val prefs = remember { context.getSharedPreferences("vulnbank_lab",Context.MODE_PRIVATE) }
-        var page by rememberSaveable { mutableStateOf("Login") }
+        var page by remember { mutableStateOf("ModeSelect") }
         var username by rememberSaveable { mutableStateOf("") }
         var password by rememberSaveable { mutableStateOf("") }
         var sessionUser by remember { mutableStateOf<DemoCustomer?>(null) }
@@ -91,6 +94,7 @@ private val tabs = listOf("Home", "Transfer", "Support", "API Lab", "More")
         var transferAmount by rememberSaveable { mutableStateOf("15.00") }
         var transferNote by rememberSaveable { mutableStateOf("") }
         var apiOutput by remember { mutableStateOf("Select a lab API request to view its response.") }
+        var replayResult by remember { mutableStateOf("Choose Run Replay Test to send the same transfer request twice.") }
         var accountId by rememberSaveable { mutableStateOf("2") }
         var subject by rememberSaveable { mutableStateOf("Account assistance") }
         var ticketMessage by rememberSaveable { mutableStateOf("") }
@@ -108,6 +112,7 @@ private val tabs = listOf("Home", "Transfer", "Support", "API Lab", "More")
                 try { block() } catch (e: Exception) {
                     error = true
                     notice = e.message ?: "Unexpected lab network error"
+                    if (page == "Replay Lab") replayResult = notice
                     if (page == "Transfer") {
                         transferFeedback = notice
                         transferFeedbackIsError = true
@@ -115,19 +120,35 @@ private val tabs = listOf("Home", "Transfer", "Support", "API Lab", "More")
                 } finally { busy = false }
             }
         }
+        fun signOut(returnToMode: Boolean = false) {
+            // In-memory token is discarded immediately. Secure sessions are short-lived.
+            api.logoutAsync(scope)
+            username = ""
+            password = ""
+            page = if (returnToMode) "ModeSelect" else "Login"
+            if (returnToMode) selectedMode = null
+            sessionUser = null
+            sessionMatches = emptyList()
+            viewingTicket = null
+            myAccount = null
+            recentActivity = emptyList()
+            selectedRecipient = null
+            recipients = emptyList()
+            notice = ""
+        }
         Box(Modifier.fillMaxSize()) {
         Scaffold(
             topBar = {
-                if (page != "Login" && page != "Home" && page != "Transfer") {
+                if (page != "ModeSelect" && page != "Login" && page != "Home" && page != "Transfer") {
                     Surface(color=Ink) {
                         Row(Modifier.fillMaxWidth().padding(horizontal=18.dp, vertical=15.dp),
                             verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.SpaceBetween) {
                             Column {
                                 Text("VulnBank  LAB", style=MaterialTheme.typography.titleLarge, fontWeight=FontWeight.Black, color=Accent)
-                                Text(if(page=="Support") "Customer support" else if(page=="API Lab") "Account services" else "More services",
+                                Text(if(page=="Support") "Customer support" else if(page=="API Lab") "Account services" else if(page=="Replay Lab") "Transaction replay lab" else "More services",
                                     style=MaterialTheme.typography.labelSmall,color=Subdued)
                             }
-                            TextButton(onClick={ page="Login"; sessionUser=null; sessionMatches=emptyList(); viewingTicket=null; myAccount=null; recentActivity=emptyList() }) {
+                            TextButton(onClick={ signOut() }) {
                                 Text("Sign out")
                             }
                         }
@@ -135,7 +156,7 @@ private val tabs = listOf("Home", "Transfer", "Support", "API Lab", "More")
                 }
             },
             bottomBar = {
-                if (page != "Login") {
+                if (page != "Login" && page != "ModeSelect") {
                     NavigationBar(containerColor=Panel) {
                         tabs.forEach { tab ->
                             NavigationBarItem(
@@ -163,6 +184,18 @@ private val tabs = listOf("Home", "Transfer", "Support", "API Lab", "More")
             containerColor=Ink
         ) { padding ->
             Column(Modifier.fillMaxSize().padding(padding)) {
+                if (page != "ModeSelect" && page != "Login") {
+                    val secure = selectedMode == LabMode.SECURE
+                    Surface(color=if (secure) Color(0xFF123D39) else Color(0xFF513024)) {
+                        Row(Modifier.fillMaxWidth().padding(horizontal=15.dp, vertical=7.dp),
+                            horizontalArrangement=Arrangement.SpaceBetween, verticalAlignment=Alignment.CenterVertically) {
+                            Text(if (secure) "SECURE · HARDENED DEMO" else "VULNERABLE · TRAINING LAB",
+                                color=if(secure) Color(0xFF60E5B3) else Color(0xFFFFAE88),
+                                style=MaterialTheme.typography.labelSmall, fontWeight=FontWeight.Bold)
+                            TextButton(onClick={signOut(returnToMode=true)}) { Text("Switch mode",color=Color.White) }
+                        }
+                    }
+                }
                 if (notice.isNotEmpty()) {
                     Spacer(Modifier.height(8.dp))
                     Box(Modifier.padding(horizontal=16.dp)) { InfoCard(notice, if (error) Bad else Accent) }
@@ -179,10 +212,25 @@ private val tabs = listOf("Home", "Transfer", "Support", "API Lab", "More")
                     modifier = Modifier.weight(1f)
                 ) { visiblePage ->
                 when(visiblePage) {
+                    "ModeSelect" -> ModeSelectionScreen(
+                        busy=busy,
+                        onChoose={ mode ->
+                            val candidate = BankApi(mode)
+                            run("Connecting to ${mode.title} lab") {
+                                candidate.verifyMode()
+                                selectedMode = mode
+                                page = "Login"
+                                notice = ""
+                            }
+                        }
+                    )
                     "Login" -> PremiumLoginScreen(username, { username=it }, password, { password=it }, busy,
                         onLogin={ run("Signing you in") {
                             val response=api.login(username,password)
-                            prefs.edit().putString("demo_session",response.token).apply() // insecure local storage is retained for testing
+                            // Never persist a secure session token in Android preferences.
+                            if (selectedMode == LabMode.VULNERABLE)
+                                prefs.edit().putString("demo_session",response.token).apply()
+                            api.setSession(response.token)
                             sessionUser=response.users.firstOrNull()
                             sessionMatches=response.users
                             bypass=response.bypassDetected
@@ -206,7 +254,7 @@ private val tabs = listOf("Home", "Transfer", "Support", "API Lab", "More")
                             run("Loading recipients") { recipients=api.recipients() }
                         }, onSupport={page="Support"},
                         onServices={page="API Lab"}, onMore={page="More"},
-                        onSignOut={page="Login"; sessionUser=null; sessionMatches=emptyList(); myAccount=null; recentActivity=emptyList(); selectedRecipient=null; recipientSearch=""}
+                        onSignOut={signOut(); recipientSearch=""}
                     )
                     "Transfer" -> PremiumTransferScreen(
                         user=sessionUser, account=myAccount,
@@ -275,7 +323,11 @@ private val tabs = listOf("Home", "Transfer", "Support", "API Lab", "More")
                                 Text(ticket.subject,style=MaterialTheme.typography.titleLarge, fontWeight=FontWeight.Bold)
                                 Text("Support request details",color=Subdued,style=MaterialTheme.typography.bodySmall)
                                 Spacer(Modifier.height(8.dp))
-                                Box(Modifier.fillMaxSize()) { VulnerableTicketWebView(ticket) }
+                                if (selectedMode == LabMode.SECURE) {
+                                    PanelCard { Text(ticket.message, color=Color.White) }
+                                } else {
+                                    Box(Modifier.fillMaxSize()) { VulnerableTicketWebView(ticket) }
+                                }
                             }
                         } else SupportScreen(
                             subject,{subject=it},ticketMessage,{ticketMessage=it},tickets,busy,
@@ -298,19 +350,54 @@ private val tabs = listOf("Home", "Transfer", "Support", "API Lab", "More")
                             apiOutput=customers.joinToString(prefix="[\n",postfix="\n]",separator=",\n") { "  ${it.id}. ${it.fullName} <${it.email}>" }
                         }},
                         onAccount={run("Loading account details") { apiOutput=api.account(accountId.toLongOrNull() ?: 1L) }},
-                        onTransactions={run("Refreshing transactions") { apiOutput=api.transactions(accountId.toLongOrNull() ?: 1L) }}
+                        onTransactions={run("Refreshing transactions") { apiOutput=api.transactions(accountId.toLongOrNull() ?: 1L) }},
+                        onReplayLab={
+                            page="Replay Lab"
+                            replayResult="Choose Run Replay Test to send the same transfer twice."
+                            run("Loading demo recipients") { recipients=api.recipients() }
+                        }
                     ) }
-                    "More" -> Column(Modifier.fillMaxSize().padding(horizontal=16.dp)) { FridaScreen(rootSimulated,{ checked ->
+                    "Replay Lab" -> ReplayLabScreen(
+                        mode=selectedMode ?: LabMode.VULNERABLE,
+                        result=replayResult, busy=busy,
+                        onBack={page="API Lab"},
+                        onReplay={
+                            run("Testing duplicate transfer processing") {
+                                val account = myAccount ?: throw IllegalStateException("Sign in and load your account first")
+                                val target = recipients.firstOrNull { it.accountId != account.id }
+                                    ?: throw IllegalStateException("Recipient directory is empty")
+                                val replayKey = UUID.randomUUID().toString()
+                                val before = api.accountDetails(account.id).balance
+                                val first = api.transfer(account.id,target.accountId,5.00,
+                                    "Idempotency replay demonstration",
+                                    sessionUser?.username,target.username,replayKey)
+                                val second = api.transfer(account.id,target.accountId,5.00,
+                                    "Idempotency replay demonstration",
+                                    sessionUser?.username,target.username,replayKey)
+                                val after = api.accountDetails(account.id).balance
+                                myAccount=api.accountDetails(account.id)
+                                recentActivity=api.transactionDetails(account.id)
+                                replayResult="""First transfer ID: ${first.transferId}
+                                    |Repeated transfer ID: ${second.transferId}
+                                    |Same operation key: $replayKey
+                                    |First balance: JOD ${"%.2f".format(java.util.Locale.US,before)}
+                                    |Final balance: JOD ${"%.2f".format(java.util.Locale.US,after)}
+                                    |Actual debit: JOD ${"%.2f".format(java.util.Locale.US,before-after)}
+                                    |Duplicate recognized: ${second.replayed}
+                                    |Expected: Vulnerable = 10.00 JOD, Secure = 5.00 JOD""".trimMargin()
+                            }
+                        }
+                    )
+                    "More" -> Column(Modifier.fillMaxSize().padding(horizontal=16.dp)) { SettingsScreen(rootSimulated,{ checked ->
                         rootSimulated=checked
                         prefs.edit().putBoolean("simulate_root",checked).apply()
                     },rootResult,authResult,
                     onCheckRoot={rootResult=if (RootGate(context).isRooted()) "Device integrity check complete" else "Device integrity check complete"},
                     onCheckVip={authResult=if (AuthGate(context).isAuthenticated()) "Local access enabled" else "Local access restricted"},
                     onCallSecret={
-                        // Method call lets the Frida hook log the key at runtime without displaying it by default.
-                        LabSecrets().getLabApiKey()
+                        if (selectedMode == LabMode.VULNERABLE) LabSecrets().getLabApiKey()
                         notice="Service configuration refreshed"
-                    }, onGoLogin={ page="Login" }) }
+                    }, onGoLogin={ signOut() }) }
                 }
                 } // AnimatedContent
             }
@@ -384,7 +471,8 @@ private val tabs = listOf("Home", "Transfer", "Support", "API Lab", "More")
 }
 @Composable private fun ApiLabScreen(
     output:String,accountId:String,onAccountId:(String)->Unit,busy:Boolean,
-    onHealth:()->Unit,onCustomers:()->Unit,onAccount:()->Unit,onTransactions:()->Unit
+    onHealth:()->Unit,onCustomers:()->Unit,onAccount:()->Unit,onTransactions:()->Unit,
+    onReplayLab:()->Unit
 ) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         Section("Account services","Account data and transaction requests")
@@ -395,6 +483,7 @@ private val tabs = listOf("Home", "Transfer", "Support", "API Lab", "More")
             OutlinedTextField(value=accountId,onValueChange=onAccountId,modifier=Modifier.fillMaxWidth(),label={Text("Account ID to enumerate (1-12)")},singleLine=true)
             OutlinedButton(onClick=onAccount,enabled=!busy,modifier=Modifier.fillMaxWidth()) { Text("GET /api/v1/accounts/{id}") }
             OutlinedButton(onClick=onTransactions,enabled=!busy,modifier=Modifier.fillMaxWidth()) { Text("GET /api/v1/transactions") }
+            Button(onClick=onReplayLab,enabled=!busy,modifier=Modifier.fillMaxWidth()) { Text("Transaction Replay & Idempotency Lab →") }
         }
         Spacer(Modifier.height(12.dp))
         PanelCard {
@@ -405,7 +494,7 @@ private val tabs = listOf("Home", "Transfer", "Support", "API Lab", "More")
         Text("Account information is updated on request.",color=Subdued,style=MaterialTheme.typography.bodySmall)
     }
 }
-@Composable private fun FridaScreen(
+@Composable private fun SettingsScreen(
     simulated:Boolean,onSimulated:(Boolean)->Unit,rootResult:String?,authResult:String?,
     onCheckRoot:()->Unit,onCheckVip:()->Unit,onCallSecret:()->Unit,onGoLogin:()->Unit
 ) {
@@ -471,4 +560,34 @@ private val tabs = listOf("Home", "Transfer", "Support", "API Lab", "More")
             loadDataWithBaseURL("https://vulnbank.lab/",html,"text/html","UTF-8",null)
         }
     })
+}
+
+/** Two identical fictional transfers, one stable Idempotency-Key, two server modes. */
+@Composable private fun ReplayLabScreen(
+    mode: LabMode, result: String, busy: Boolean,
+    onBack: () -> Unit, onReplay: () -> Unit
+) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=16.dp)) {
+        TextButton(onClick=onBack) { Text("‹ Back to API Lab") }
+        Section("Transaction Replay", "Idempotency and duplicate payment processing")
+        PanelCard {
+            Text(if(mode==LabMode.SECURE) "SECURE BACKEND" else "VULNERABLE BACKEND",
+                fontWeight=FontWeight.Bold,
+                color=if(mode==LabMode.SECURE) Color(0xFF54E7AA) else Color(0xFFFFB38D))
+            Text("This test sends the SAME synthetic JOD 5 transfer twice with the SAME Idempotency-Key.",
+                color=Subdued)
+            Text(if(mode==LabMode.SECURE)
+                "Expected: one debit and the original transfer ID returned on retry."
+                else "Expected: two debits because the vulnerable backend ignores the replay key.",color=Subdued)
+            Button(onClick=onReplay,enabled=!busy,modifier=Modifier.fillMaxWidth()) {
+                Text("Run Replay Test")
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        PanelCard {
+            Text("Test result",fontWeight=FontWeight.Bold)
+            Text(result,color=Color.White,style=MaterialTheme.typography.bodySmall)
+        }
+        Spacer(Modifier.height(24.dp))
+    }
 }
