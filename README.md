@@ -512,6 +512,136 @@ The application is intentionally insecure so these weaknesses can be studied in 
 
 ---
 
+## 🔐 NEW — Dual Security Modes & Transaction Replay Lab
+
+VulnBank LAB now includes a **Dual Security Mode architecture**, allowing users to compare intentionally vulnerable banking functionality with a hardened implementation.
+
+The application provides two selectable environments at startup:
+
+### 🔴 Vulnerable Mode — Offensive Security Lab
+
+An intentionally insecure banking environment designed to demonstrate real-world application and API weaknesses.
+
+**Included vulnerabilities:**
+- SQL Injection and authentication bypass
+- Broken Object Level Authorization (BOLA/IDOR)
+- Stored Cross-Site Scripting (XSS)
+- Hardcoded API keys
+- Unauthorized money transfers
+- Business logic flaws
+- Transaction Replay due to missing idempotency protection
+
+### 🟢 Secure Mode — Hardened Security Demonstration
+
+A separate environment implementing security controls to demonstrate how the same vulnerabilities can be mitigated.
+
+**Implemented protections:**
+- Parameterized SQL queries
+- Improved authentication and password handling
+- Session-based authentication
+- Server-side account ownership verification
+- Protected account and transaction endpoints
+- Safer handling of untrusted support content
+- Transaction idempotency protection
+- Concurrent replay prevention
+
+**Security note:** Secure Mode is a hardened educational comparison environment, not a production-ready banking application or a guarantee of complete security.
+
+---
+
+## 💳 Transaction Replay & Idempotency Testing
+
+One of the major new features is a practical **Transaction Replay Attack laboratory**.
+
+The scenario demonstrates how resending an identical transfer request can cause duplicate financial transactions when the backend does not enforce idempotency.
+
+### Vulnerable vs Secure Behavior
+
+| Test Scenario | Vulnerable Mode | Secure Mode |
+|---|---|---|
+| Replaying the same transfer | Two transactions | One transaction |
+| Duplicate balance deduction | Vulnerable | Prevented |
+| Idempotency-Key enforcement | Not enforced | Enforced |
+| Same key with modified payload | Not protected | Rejected |
+| Concurrent replay protection | Not verified | Verified |
+| Account ownership validation | Intentionally missing | Enforced |
+
+### Verified Test Results
+
+The replay tests were executed against the local Kotlin Ktor and PostgreSQL environment.
+
+**Vulnerable Mode:**
+- Original transfer amount: 5 JOD
+- Replayed request: 5 JOD
+- Total deduction: **10 JOD**
+- Different transaction IDs: **14 and 15**
+
+**Secure Mode:**
+- Original transfer amount: 5 JOD
+- Replayed request using the same Idempotency-Key
+- Total deduction: **5 JOD**
+- Same transaction ID returned for both requests: **1**
+
+Additional tests confirmed that Secure Mode rejects a changed transfer payload using an existing idempotency key, and that concurrent identical requests produce only one debit.
+
+These results demonstrate the importance of server-side transaction processing controls in financial applications.
+
+---
+
+## 🏗️ Dual-Mode Architecture
+
+Both environments run locally with separate backend services and PostgreSQL databases.
+
+| Component | Vulnerable Mode | Secure Mode |
+|---|---|---|
+| Android application | Vulnerable selection | Secure selection |
+| Burp Suite proxy | `10.0.2.2:8081` | `10.0.2.2:8083` |
+| Ktor backend | `127.0.0.1:8080` | `127.0.0.1:8082` |
+| Database | Vulnerable PostgreSQL | Separate secure PostgreSQL |
+| API interception | Enabled | Enabled |
+| Transport | Local HTTP | Local HTTP |
+
+Both modes support HTTP request interception through Burp Suite for educational testing. HTTP traffic is intentionally unencrypted in this isolated lab.
+
+### Running the Laboratory
+
+Start the Docker environment with:
+
+`docker compose up -d --build`
+
+Verify both security environments using:
+
+`python scripts/verify_dual_mode.py`
+
+Execute the sequential transaction replay test:
+
+`python scripts/verify_dual_mode.py --run-replay`
+
+Execute the concurrent replay test:
+
+`python scripts/verify_dual_mode.py --run-concurrent`
+
+**Note:** Replay tests modify fictional account balances.
+
+---
+
+## 🎯 Learning Objectives
+
+This project demonstrates not only how attackers exploit security weaknesses, but also how developers can implement and verify corresponding defenses.
+
+The dual-mode architecture supports comparative analysis of:
+
+- Vulnerability exploitation versus mitigation
+- Authentication and authorization enforcement
+- Business logic security testing
+- Transaction integrity
+- Request replay and concurrency handling
+- Secure API design and validation
+
+**VulnBank LAB — Learn by Testing. Understand by Exploiting. Secure by Design.**
+
+**Developed by SHAMS SAMARA**
+
 ## ⚠️ Responsible Usage
 
 This repository is provided exclusively for:
