@@ -1,688 +1,324 @@
 # 🏦 VulnBank LAB
-### Vulnerable Android Banking Application | Mobile & API Penetration Testing
 
-**Created by SHAMS SAMARA**
+### Android Banking Security Lab | Vulnerable vs. Hardened API Testing
 
-VulnBank LAB is an intentionally vulnerable Android banking application designed for hands-on mobile security research, API penetration testing, and cybersecurity education.
+**Developed by SHAMS SAMARA**
 
-The project simulates a modern mobile banking environment, combining a premium Android interface with an intentionally insecure backend and realistic banking workflows.
+VulnBank LAB is an educational Android banking simulation for hands-on **mobile application security, API penetration testing, business-logic analysis, and secure-coding comparisons**. It uses **Kotlin, Jetpack Compose, Ktor, PostgreSQL, Docker Compose, OkHttp, and Burp Suite** to demonstrate how banking vulnerabilities work and how selected server-side controls mitigate them.
 
-It allows security students, penetration testers, and researchers to investigate vulnerabilities such as SQL Injection, Broken Object Level Authorization (BOLA/IDOR), Stored XSS, insecure API authentication, and unauthorized money transfers.
+Users can choose between an intentionally insecure **Vulnerable Mode** and a separate **Secure Mode** (a hardened comparison demo). Both contain fictional customers, balances, transactions, support tickets, and simulated transfers.
 
-> ⚠️ **SECURITY WARNING — LOCAL TRAINING ONLY**
->
-> VulnBank LAB is intentionally insecure. All users, accounts, balances, credentials, transactions, and API keys are fictional.
->
-> Do not expose the vulnerable backend to the public internet or use this project with real financial information.
+> [!WARNING]
+> **INTENTIONALLY INSECURE — ISOLATED LOCAL TRAINING ONLY.** All users, accounts, payments, credentials, and API keys are synthetic. Never connect this project to real financial systems or expose its endpoints to the public internet. **Secure Mode is not audited or production-ready**; both modes intentionally use unencrypted local HTTP to support Burp Suite demonstrations.
 
 ---
-
-
 
 ## 📱 Application Screenshots
 
-### Login & Dashboard
-| Login Screen | Banking Dashboard |
-|:---:|:---:|
-| <img src="docs/screenshots/login.png" width="260"> | <img src="docs/screenshots/dashboard.png" width="260"> |
+### Login and Banking Dashboard
 
-### Money Transfer & Transactions
-| Transfer Money | Transaction History |
+| Login | Dashboard |
 |:---:|:---:|
-| <img src="docs/screenshots/transfer.png" width="260"> | <img src="docs/screenshots/transactions.png" width="260"> |
+| <img src="docs/screenshots/login.png" width="280" alt="VulnBank login interface" /> | <img src="docs/screenshots/dashboard.png" width="280" alt="VulnBank account dashboard" /> |
 
-### API Security Lab
+### Transfers and Transaction History
+
+| Transfer Money | Recent Transactions |
+|:---:|:---:|
+| <img src="docs/screenshots/transfer.png" width="280" alt="Transfer to a recipient" /> | <img src="docs/screenshots/transactions.png" width="280" alt="Synthetic transaction history" /> |
+
+### Security Modes and API Lab
+
+| Secure Mode Dashboard | API Testing Lab |
+|:---:|:---:|
+| <img src="docs/screenshots/secure-mode.png" width="280" alt="Secure hardened comparison dashboard" /> | <img src="docs/screenshots/api-lab.png" width="280" alt="API test interface" /> |
+
+### Burp Suite — Secure Transaction Replay
+
 <p align="center">
-  <img src="docs/screenshots/api-lab.png" width="280">
+  <img src="docs/screenshots/secure-replay.png" width="900" alt="Burp Suite request and response showing replayed true for a duplicate money transfer" />
 </p>
 
-Explore account endpoints, inspect API responses, and practice
-mobile and API penetration testing in an isolated lab.
+*The replayed request returns `"replayed": true` and the original transfer ID without a second debit. The demo Bearer token in the screenshot is redacted.*
 
+> GitHub renders the images above from `docs/screenshots/`. If an image is missing, verify its exact filename and that the file is committed to the repository's current branch.
 
-
-
-
+---
 
 ## ✨ Features
 
-### Premium Android Banking Interface
+- Native **Kotlin / Jetpack Compose** UI with a navy-blue banking theme, custom logo, loading motion, and smooth transitions.
+- Authentication, account overview, JOD balances, synthetic transaction history, and searchable recipients.
+- Simulated money transfers, customer support, and an integrated API testing interface.
+- Startup selection between **Vulnerable** and **Secure** training environments.
+- A **Transaction Replay / Idempotency** exercise with intentionally different behavior in each environment.
+- Traffic inspection using **Burp Suite** without Frida or certificate installation in the local HTTP lab.
+- Separate Ktor services, isolated PostgreSQL databases, and repeatable verification scripts.
+- Visible creator credit: **CREATED BY SHAMS SAMARA**.
 
-Built using **Kotlin and Jetpack Compose**, featuring:
+The seed data includes **12 fictional customers**. A recipient may be displayed as `Bob Smith · @bob · Account #2`.
 
-- Modern dark navy and electric-blue banking design
-- Animated application splash screen
-- Smooth navigation transitions
-- Custom loading animations and refresh indicators
-- User authentication interface
-- Banking dashboard and account balance overview
-- Money transfer interface
-- Searchable recipient directory
-- Transaction history
-- Customer support interface
-- API security laboratory
-- Professional creator signature: **SHAMS SAMARA**
+## 🔐 Vulnerable vs. Secure Mode
 
-### Banking Simulation
+The two modes are selected at application startup and use separate backend services and database storage. The Secure implementation demonstrates specific defenses; it does **not** claim the application is free of every vulnerability.
 
-The application includes fictional banking data and transactions:
+| Security scenario | 🟠 Vulnerable Mode | 🟢 Secure Mode |
+|---|---|---|
+| Login and SQL injection | Deliberately injectable login | Parameterized queries and hardened authentication |
+| User and account authorization | BOLA / IDOR training | Session authentication and account-ownership checks |
+| Customer API | Embedded demonstration API key | Session-based access control |
+| Customer support | Unsafe HTML/WebView scenario | Safer display of untrusted content |
+| Transfer source account | Missing sender-ownership verification | Server-side ownership enforcement |
+| Duplicate transfer replay | Duplicate requests can debit twice | Idempotency key prevents repeat debit |
+| Changed payload, same key | No idempotency safeguard | Request rejected without another debit |
+| Simultaneous duplicate requests | Not established by the test suite | Tested to return one transaction and one debit |
 
-- 12 synthetic banking customers
-- Individual accounts and balances in JOD
-- Demo user authentication
-- Account information
-- Transaction records
-- Customer support tickets
-- Recipient selection using full names, usernames, and account IDs
-- Transfers between fictional accounts
+### Vulnerability research topics
 
-Example recipient:
-
-`Bob Smith · @bob · Account #2`
+- **SQL Injection** — authentication bypass and prepared statements.
+- **BOLA / IDOR** — object ownership and access-control failures.
+- **Stored XSS** — rendering untrusted support-ticket content in a WebView.
+- **Hardcoded API Keys** — extracting client-side demo credentials.
+- **Business Logic Abuse** — changing the source account on a fictional transfer.
+- **Transaction Replay** — duplicate debits when idempotency is missing.
+- **Concurrent Replay** — demonstrating how the hardened service handles duplicate requests arriving at the same time.
 
 ---
+
+## 💳 Transaction Replay & Idempotency Lab
+
+**Scenario:** Alice intends to transfer **5 JOD** to Bob. The same HTTP request is sent twice with the same `Idempotency-Key`, as might happen with an application retry or a request replay.
+
+**Verified local test results:**
+
+| Test | Vulnerable Mode | Secure Mode |
+|---|---|---|
+| Request sent twice | Two transactions | Original transaction result reused |
+| Alice's total debit | **10.00 JOD** | **5.00 JOD** |
+| Transfer IDs in one recorded run | `14`, `15` | `1`, `1` |
+| Reuse key with modified transfer | Not protected | Rejected; balance unchanged |
+| Two simultaneous identical retries | Not verified in vulnerable mode | Same transfer ID; one debit |
+
+The transaction IDs are from a specific successful test run; new installations will have different IDs. The results establish only the tested behavior, not general security certification.
+
+### Run the automated security checks
+
+Check both environments without executing replay transfers:
+
+```powershell
+python .\scripts\verify_dual_mode.py
+```
+
+Run the sequential replay test (**changes fictional balances**):
+
+```powershell
+python .\scripts\verify_dual_mode.py --run-replay
+```
+
+Run the concurrent replay test (**changes fictional balances**):
+
+```powershell
+python .\scripts\verify_dual_mode.py --run-concurrent
+```
+
+You can also inspect `POST /api/v1/transfers` in **Burp Suite → HTTP history**, send the original request to **Repeater**, and replay it with the same `Idempotency-Key`. Keep the request body identical when evaluating duplicate handling.
+
+---
+
+## 🏗️ Local Architecture
+
+```text
+                         Android Emulator
+                       VulnBank LAB Android
+                               |
+                 +-------------+-------------+
+                 |                           |
+           Vulnerable Mode               Secure Mode
+                 |                           |
+       Burp 10.0.2.2:8081         Burp 10.0.2.2:8083
+                 |                           |
+       Ktor 127.0.0.1:8080        Ktor 127.0.0.1:8082
+                 |                           |
+       PostgreSQL (db)            PostgreSQL (db_secure)
+       isolated vulnnet          isolated securenet
+```
+
+| Component | Vulnerable | Secure |
+|---|---|---|
+| Android explicit proxy | `10.0.2.2:8081` | `10.0.2.2:8083` |
+| Burp listener on Windows | `127.0.0.1:8081` | `127.0.0.1:8083` |
+| Ktor backend on Windows | `127.0.0.1:8080` | `127.0.0.1:8082` |
+| PostgreSQL | `db` (host mapping `127.0.0.1:5433`) | `db_secure` (internal Docker access) |
+| Network | `vulnnet` | `securenet` |
+
+`10.0.2.2` is the Android Emulator's alias for the host computer. The dual-proxy configuration requires the corresponding OkHttp settings in `BankApi.kt` and two running Burp listeners. The project uses **plain local HTTP** intentionally and does not require Frida or Burp CA certificates.
+
+**The Burp listeners should use ordinary HTTP proxying, without a forced host/port redirect, when the Android client sends the correct destination URL.**
 
 ## 🛠️ Technology Stack
 
-| Component | Technology |
+| Layer | Technology |
 |---|---|
-| Android application | Kotlin |
-| User interface | Jetpack Compose |
-| Backend | Kotlin Ktor |
+| Android | Kotlin, Jetpack Compose, Android Studio |
+| HTTP | OkHttp, explicit HTTP proxy |
+| Backend | Kotlin Ktor REST APIs |
 | Database | PostgreSQL |
-| Local deployment | Docker Compose |
-| HTTP client | OkHttp |
-| HTTP interception | Burp Suite |
-| Offline mobile database | SQLite |
-| Build system | Gradle |
+| Containerization | Docker Compose |
+| Verification | Python 3, Burp Suite Repeater |
+| Build | Gradle 8.14; JDK 17 or 21 recommended |
 
----
-
-## 🏗️ Architecture
-
-### Local Penetration Testing Environment
+## 📁 Repository Layout
 
 ```text
-              Android Emulator
-              VulnBank LAB App
-                      |
-                      | HTTP Requests
-                      v
-             Burp Suite Proxy
-               10.0.2.2:8081
-                      |
-                      v
-                Ktor Backend
-               127.0.0.1:8080
-                      |
-                      v
-                 PostgreSQL
-                Docker Network
-```
-
-The Android application uses an explicit HTTP proxy to allow requests and responses to be inspected and modified through Burp Suite.
-
-The backend and database expose their host ports on the Windows loopback interface, keeping the lab isolated from external networks.
-
-### Connection Configuration
-
-| Service | Address |
-|---|---|
-| Android Emulator → Burp | `10.0.2.2:8081` |
-| Burp Suite Listener | `127.0.0.1:8081` |
-| Ktor Backend | `http://127.0.0.1:8080` |
-| PostgreSQL | `127.0.0.1:5433` |
-
-`10.0.2.2` is the Android Emulator's special alias for the host computer.
-
-The current lab uses HTTP for direct interception and analysis.
-
----
-
-## 📁 Project Structure
-
-```text
-VulnBankLab/
-│
-├── app/
-│   └── src/
-│       ├── main/
-│       │   ├── java/com/vulnbank/lab/
-│       │   │   ├── network/
-│       │   │   ├── security/
-│       │   │   └── ui/
-│       │   └── res/
-│       │
-│       └── offline/
-│
-├── server/
+Vuln_Bank_LAB/
+├── app/                         # Android app (Kotlin + Compose)
+│   └── src/main/
+├── server/                      # Ktor vulnerable and hardened routes
 │   └── src/main/kotlin/
-│
 ├── db/
-│   └── init.sql
-│
+│   ├── init.sql                 # Vulnerable demo database
+│   └── init_secure.sql          # Hardened demo database
 ├── docs/
-│
+│   └── screenshots/             # GitHub screenshot gallery
 ├── scripts/
-│
-├── compose.yaml
+│   └── verify_dual_mode.py      # Verification and replay tests
+├── compose.yaml                 # Four services, two Docker networks
 ├── build.gradle.kts
 ├── settings.gradle.kts
 └── README.md
 ```
 
-**Main components:**
-
-- `app/` — Android application and user interface
-- `server/` — Ktor backend and vulnerable API endpoints
-- `db/` — PostgreSQL database schema and synthetic records
-- `docs/` — Security exercises and API documentation
-- `scripts/` — Local environment and validation utilities
-- `compose.yaml` — Docker services and networking
-
----
-
-## ⚙️ Requirements
-
-To run the complete penetration-testing environment:
-
-- Windows 10/11
-- Android Studio and Android SDK
-- Android Emulator
-- Java 17 or newer
-- Docker Desktop with Docker Compose
-- Burp Suite
-- Python 3 (optional, for API validation)
-
-Additional tools such as JADX, APKTool, and ADB can be used for Android application analysis.
-
-Internet access may be required during the initial installation of Gradle and Android dependencies.
+The project documentation includes `docs/DUAL_MODE_REPLAY_AR.md`, `docs/TRANSFER_BURP_AR.md`, `docs/BURP_NO_CERT_AR.md`, and `docs/API_REFERENCE.md`.
 
 ---
 
 ## 🚀 Getting Started
 
-### 1. Clone the Repository
+### Requirements
 
-```bash
-git clone https://github.com/YOUR_USERNAME/VulnBankLab.git
-cd VulnBankLab
-```
+- Windows 10/11 with **Docker Desktop**, Docker Compose, and **Android Studio**.
+- Android SDK with a running Android Emulator.
+- **Gradle-compatible JDK 17 or 21** selected under Android Studio's Gradle settings.
+- **Burp Suite** for traffic interception.
+- Python 3 for the optional validation scripts.
+- Internet access for initial dependencies and Docker images.
 
-Replace `YOUR_USERNAME` with your GitHub username.
-
-### 2. Start PostgreSQL and Ktor
-
-Open PowerShell in the project directory:
+### 1. Clone and start the lab
 
 ```powershell
+git clone https://github.com/shamssamara/Vuln_Bank_LAB.git
+cd Vuln_Bank_LAB
+
 docker compose up -d --build
-```
-
-Verify the services:
-
-```powershell
 docker compose ps
 ```
 
-Both the database and backend should be running.
+Expected services are `db`, `server`, `db_secure`, and `server_secure`. **Do not run `docker compose down -v` unless you intend to delete both synthetic database volumes.**
 
-### 3. Verify the Backend
+### 2. Verify the two backends
 
 ```powershell
 curl.exe --noproxy "*" http://127.0.0.1:8080/health
+curl.exe --noproxy "*" http://127.0.0.1:8082/health
+python .\scripts\verify_dual_mode.py
 ```
 
-Expected result includes:
+Expected health response fields include `"backendVersion": "2026.11-dual-mode-replay"` and `"securityMode": "vulnerable"` or `"securityMode": "secure"`, respectively.
 
-```json
-{
-  "status": "ok",
-  "labMode": true
-}
-```
+### 3. Configure Burp Suite
 
-You can also run the included validation script:
+Under **Proxy → Proxy settings → Proxy listeners**, create two listeners:
 
-```powershell
-python .\scripts\verify_update.py
-```
+- **Vulnerable:** bind to `127.0.0.1:8081`.
+- **Secure:** bind to `127.0.0.1:8083`.
 
-### 4. Configure Burp Suite
+Set **Intercept off** for normal operation; enable it only when you need to pause a request. Use HTTP history and Repeater to test the synthetic APIs. No device-wide Android proxy is necessary if the app's explicit OkHttp proxy configuration is installed.
 
-Open Burp Suite and navigate to:
+### 4. Run Android
 
-**Proxy → Proxy Settings → Proxy Listeners**
+Open the **repository root** in Android Studio, sync Gradle, select a running emulator and press **Run**. Choose **Vulnerable** or **Secure** on the startup screen.
 
-Configure an HTTP listener:
-
-```text
-Bind Address: 127.0.0.1
-Port: 8081
-```
-
-Keep request interception disabled for normal application usage.
-
-Do not configure a host or port redirect on this listener.
-
-The Android application sends HTTP requests through this proxy, allowing traffic inspection using Burp's HTTP history and Repeater.
-
-### 5. Run the Android Application
-
-1. Open the project root in Android Studio.
-2. Allow Gradle to synchronize.
-3. Start an Android Emulator.
-4. Select the appropriate application run configuration.
-5. Build and run the application.
-
-**Demo credentials:**
+Demo login:
 
 ```text
 Username: alice
 Password: password123
 ```
 
-Once authenticated, explore the dashboard, account information, transfers, support tickets, and API testing features.
+These credentials are **training-only**. A successful Android build does not require rebuilding Docker unless the server code has changed.
 
----
+### 5. Daily startup and shutdown
 
-## 🔐 Vulnerability Laboratory
-
-VulnBank includes deliberately insecure application and backend functionality.
-
-### 1. SQL Injection
-
-**Endpoint:**
-
-`POST /api/v1/auth/login`
-
-The lab contains deliberately insecure username handling in its authentication logic.
-
-Example test input:
-
-```sql
-' OR 1=1 --
-```
-
-**Learning objectives:**
-
-- Understand SQL Injection in authentication workflows
-- Observe manipulated database queries
-- Investigate authentication bypass
-- Learn why parameterized queries are necessary
-
-### 2. Broken Object Level Authorization (BOLA / IDOR)
-
-**Endpoints:**
-
-```http
-GET /api/v1/accounts/2
-GET /api/v1/transactions?account_id=2
-```
-
-The backend deliberately lacks appropriate object ownership enforcement.
-
-**Learning objectives:**
-
-- Identify missing object-level access control
-- Test unauthorized access to fictional accounts
-- Understand API authorization weaknesses
-
-### 3. Unauthorized Money Transfers
-
-**Endpoint:**
-
-`POST /api/v1/transfers`
-
-The transfer feature allows fictional funds to move between banking accounts.
-
-A deliberately missing sender-ownership verification enables testing of authorization weaknesses.
-
-**Learning objectives:**
-
-- Manipulate transfer requests through Burp Suite
-- Investigate unauthorized source-account selection
-- Understand business logic vulnerabilities
-- Learn how backend transaction authorization should work
-
-### 4. Stored Cross-Site Scripting (XSS)
-
-**Feature:** Customer Support
-
-The application intentionally renders untrusted HTML in a WebView.
-
-Example test payload:
-
-```html
-<script>alert("XSS");</script>
-```
-
-**Learning objectives:**
-
-- Understand stored XSS
-- Analyze unsafe HTML rendering
-- Observe JavaScript execution in embedded WebViews
-- Explore secure handling of untrusted content
-
-### 5. Hardcoded API Key
-
-**Endpoint:**
-
-`GET /api/v1/customers`
-
-Demo API key:
-
-```text
-VULNBANK_LAB_KEY_123
-```
-
-**Learning objectives:**
-
-- Analyze credentials embedded in mobile applications
-- Inspect application resources and source code
-- Understand why client-side API secrets cannot be trusted
-
-### 6. Insecure Client-Side Security Controls
-
-The application includes intentionally weak security logic for educational analysis.
-
-The lab demonstrates why authorization and other critical security decisions must not rely exclusively on the Android client.
-
----
-
-## 📡 API Reference
-
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/health` | Backend health status |
-| POST | `/api/v1/auth/login` | Demo authentication |
-| GET | `/api/v1/accounts/{id}` | Account information |
-| GET | `/api/v1/transactions?account_id={id}` | Transaction history |
-| GET | `/api/v1/recipients` | Recipient directory |
-| POST | `/api/v1/transfers` | Simulated money transfers |
-| GET | `/api/v1/customers` | Customer API |
-| POST | `/api/v1/support` | Submit support ticket |
-| GET | `/api/v1/support` | Retrieve support tickets |
-
-For more information, see:
-
-- `docs/API_REFERENCE.md`
-- `docs/LAB_EXERCISES.md`
-- `docs/TRANSFER_BURP_AR.md`
-- `docs/BURP_NO_CERT_AR.md` (the existing HTTP proxy setup guide)
-
----
-
-## 📱 Offline Android Demo
-
-VulnBank also includes an optional offline-oriented Android demo for presentations and standalone mobile use.
-
-This edition is intended to run directly on an Android phone without requiring a running Docker backend.
-
-**Offline edition characteristics:**
-
-- Local SQLite database
-- Fictional user accounts and balances
-- Local authentication and banking workflows
-- Simulated money transfers
-- Persistent local demo data
-- Premium Android interface
-
-Build the offline APK using:
-
-```powershell
-.\gradlew.bat :app:assembleOfflineDebug
-```
-
-The expected output is:
-
-```text
-app/build/outputs/apk/offline/debug/app-offline-debug.apk
-```
-
-**Important:** The Offline Demo is separate from the HTTP API penetration-testing environment. Network-based API testing through Burp Suite requires the Ktor backend version.
-
-The offline database starts with synthetic demo records and does not automatically synchronize with PostgreSQL.
-
----
-
-## 🔄 Daily Lab Startup
-
-If Docker Desktop is configured to launch with Windows and the containers use:
-
-```yaml
-restart: unless-stopped
-```
-
-PostgreSQL and Ktor can automatically restart when the Docker engine becomes available.
-
-For manual startup:
+If Docker Desktop starts automatically with Windows and the services use `restart: unless-stopped`, containers can restart when Docker starts. Otherwise:
 
 ```powershell
 docker compose up -d
 ```
 
-Then open Burp Suite and the Android Emulator.
-
-There is no need to rebuild Docker images every time unless the backend code or configuration has changed.
-
-To stop the lab:
+To stop without deleting balances and tickets:
 
 ```powershell
 docker compose stop
 ```
 
----
+### Windows Buildx troubleshooting
 
-## 🗄️ Database Management
-
-PostgreSQL uses a persistent Docker volume named `dbdata`.
-
-Normal service restarts preserve fictional users, balances, transfers, and support tickets.
-
-To stop and remove project containers without deleting the database volume:
+Some Windows Docker Compose / Buildx combinations may report `additional privileges requested` while reading `server/Dockerfile`. For a **trusted local checkout only**, the following temporary workaround has been used:
 
 ```powershell
-docker compose down
+$env:BUILDX_BAKE_ENTITLEMENTS_FS = "0"
+docker compose build server server_secure
+docker compose up -d --no-build --force-recreate server server_secure
+Remove-Item Env:BUILDX_BAKE_ENTITLEMENTS_FS
 ```
 
-To reset the lab database:
-
-```powershell
-.\scripts\reset_lab.ps1
-```
-
-> **Warning:** Resetting the database destroys previously stored lab transactions and tickets. Use this only when a fresh training environment is required.
+Prefer updating Docker Desktop/Compose when a fixed version is available. This environment variable should not be set globally for unrelated builds.
 
 ---
 
-## 🛡️ Security Lessons
+## 📡 Selected API Endpoints
 
-| Vulnerability | Production Security Principle |
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/health` | Backend identity and status |
+| POST | `/api/v1/auth/login` | Demo login; SQLi comparison |
+| POST | `/api/v1/auth/logout` | Secure session logout |
+| GET | `/api/v1/recipients` | Recipient directory |
+| GET | `/api/v1/accounts/{id}` | Account lookup; BOLA comparison |
+| GET | `/api/v1/transactions?account_id={id}` | Transaction history |
+| POST | `/api/v1/transfers` | Synthetic transfer; replay and idempotency testing |
+| GET | `/api/v1/customers` | Demo customer API |
+| POST | `/api/v1/support` | Submit a support ticket |
+| GET | `/api/v1/support` | Read support tickets |
+
+The available authentication/authorization requirements differ by security mode. Refer to `docs/API_REFERENCE.md` and the route implementations for exact request and response contracts.
+
+## 🔒 Security Lessons
+
+| Vulnerability or flaw | Recommended production defense |
 |---|---|
-| SQL Injection | Use parameterized SQL queries |
-| Stored XSS | Safely encode and sanitize untrusted content |
-| BOLA / IDOR | Enforce server-side object ownership |
-| Transfer authorization bypass | Verify ownership and authorization before transfers |
-| Hardcoded API keys | Avoid trusting secrets embedded in mobile applications |
-| Client-side authentication weaknesses | Enforce authentication on the backend |
-| Insecure token handling | Use secure token management and storage |
+| SQL injection | Parameterized queries and input handling |
+| BOLA / IDOR | Server-side object-level authorization |
+| Stored XSS | Safe rendering and context-appropriate encoding |
+| Hardcoded secrets | Avoid sensitive client-side credentials |
+| Unauthorized transfers | Verify authenticated sender ownership |
+| Duplicate processing | Persistent idempotency keys and atomic transactions |
+| Concurrent replay | Concurrency-safe duplicate detection |
+| Insecure transport | HTTPS/TLS and appropriate production transport security |
 
-The application is intentionally insecure so these weaknesses can be studied in a controlled environment.
-
----
-
-## 🔐 NEW — Dual Security Modes & Transaction Replay Lab
-
-VulnBank LAB now includes a **Dual Security Mode architecture**, allowing users to compare intentionally vulnerable banking functionality with a hardened implementation.
-
-The application provides two selectable environments at startup:
-
-### 🔴 Vulnerable Mode — Offensive Security Lab
-
-An intentionally insecure banking environment designed to demonstrate real-world application and API weaknesses.
-
-**Included vulnerabilities:**
-- SQL Injection and authentication bypass
-- Broken Object Level Authorization (BOLA/IDOR)
-- Stored Cross-Site Scripting (XSS)
-- Hardcoded API keys
-- Unauthorized money transfers
-- Business logic flaws
-- Transaction Replay due to missing idempotency protection
-
-### 🟢 Secure Mode — Hardened Security Demonstration
-
-A separate environment implementing security controls to demonstrate how the same vulnerabilities can be mitigated.
-
-**Implemented protections:**
-- Parameterized SQL queries
-- Improved authentication and password handling
-- Session-based authentication
-- Server-side account ownership verification
-- Protected account and transaction endpoints
-- Safer handling of untrusted support content
-- Transaction idempotency protection
-- Concurrent replay prevention
-
-**Security note:** Secure Mode is a hardened educational comparison environment, not a production-ready banking application or a guarantee of complete security.
+The hardened lab demonstrates selected controls but is not a substitute for professional security review, threat modeling, penetration testing, or production hardening.
 
 ---
 
-## 💳 Transaction Replay & Idempotency Testing
+## ⚠️ Responsible Use
 
-One of the major new features is a practical **Transaction Replay Attack laboratory**.
+This project is intended for authorized local experiments, academic demonstrations, secure development training, and cybersecurity education. Do not deploy the intentionally vulnerable services publicly, use real credentials, or connect fictional payments to external financial infrastructure.
 
-The scenario demonstrates how resending an identical transfer request can cause duplicate financial transactions when the backend does not enforce idempotency.
+## 👨‍💻 Author and Copyright
 
-### Vulnerable vs Secure Behavior
+**SHAMS SAMARA**  
+*Cybersecurity · Mobile Security · API Penetration Testing*
 
-| Test Scenario | Vulnerable Mode | Secure Mode |
-|---|---|---|
-| Replaying the same transfer | Two transactions | One transaction |
-| Duplicate balance deduction | Vulnerable | Prevented |
-| Idempotency-Key enforcement | Not enforced | Enforced |
-| Same key with modified payload | Not protected | Rejected |
-| Concurrent replay protection | Not verified | Verified |
-| Account ownership validation | Intentionally missing | Enforced |
-
-### Verified Test Results
-
-The replay tests were executed against the local Kotlin Ktor and PostgreSQL environment.
-
-**Vulnerable Mode:**
-- Original transfer amount: 5 JOD
-- Replayed request: 5 JOD
-- Total deduction: **10 JOD**
-- Different transaction IDs: **14 and 15**
-
-**Secure Mode:**
-- Original transfer amount: 5 JOD
-- Replayed request using the same Idempotency-Key
-- Total deduction: **5 JOD**
-- Same transaction ID returned for both requests: **1**
-
-Additional tests confirmed that Secure Mode rejects a changed transfer payload using an existing idempotency key, and that concurrent identical requests produce only one debit.
-
-These results demonstrate the importance of server-side transaction processing controls in financial applications.
-
----
-
-## 🏗️ Dual-Mode Architecture
-
-Both environments run locally with separate backend services and PostgreSQL databases.
-
-| Component | Vulnerable Mode | Secure Mode |
-|---|---|---|
-| Android application | Vulnerable selection | Secure selection |
-| Burp Suite proxy | `10.0.2.2:8081` | `10.0.2.2:8083` |
-| Ktor backend | `127.0.0.1:8080` | `127.0.0.1:8082` |
-| Database | Vulnerable PostgreSQL | Separate secure PostgreSQL |
-| API interception | Enabled | Enabled |
-| Transport | Local HTTP | Local HTTP |
-
-Both modes support HTTP request interception through Burp Suite for educational testing. HTTP traffic is intentionally unencrypted in this isolated lab.
-
-### Running the Laboratory
-
-Start the Docker environment with:
-
-`docker compose up -d --build`
-
-Verify both security environments using:
-
-`python scripts/verify_dual_mode.py`
-
-Execute the sequential transaction replay test:
-
-`python scripts/verify_dual_mode.py --run-replay`
-
-Execute the concurrent replay test:
-
-`python scripts/verify_dual_mode.py --run-concurrent`
-
-**Note:** Replay tests modify fictional account balances.
-
----
-
-## 🎯 Learning Objectives
-
-This project demonstrates not only how attackers exploit security weaknesses, but also how developers can implement and verify corresponding defenses.
-
-The dual-mode architecture supports comparative analysis of:
-
-- Vulnerability exploitation versus mitigation
-- Authentication and authorization enforcement
-- Business logic security testing
-- Transaction integrity
-- Request replay and concurrency handling
-- Secure API design and validation
+**© 2026 Shams Samara.** Original authored material belongs to its respective copyright holder. Check the repository's `LICENSE` and any applicable component licenses for permissions; third-party dependencies remain under their respective terms. A copyright notice does not override the permissions granted by a published open-source license.
 
 **VulnBank LAB — Learn by Testing. Understand by Exploiting. Secure by Design.**
-
-**Developed by SHAMS SAMARA**
-
-## ⚠️ Responsible Usage
-
-This repository is provided exclusively for:
-
-- Cybersecurity education
-- Mobile application security research
-- API penetration-testing practice
-- Secure coding demonstrations
-- Local security labs and academic projects
-
-**Do not deploy VulnBank LAB as a production banking application.**
-
-Do not connect it to real banking services, financial accounts, or public-facing infrastructure.
-
-All included financial information is fictional.
-
----
-
-## 👨‍💻 Author
-
-**SHAMS SAMARA**
-
-*Cybersecurity | Mobile Security | API Penetration Testing*
-
-Developed as a practical cybersecurity training project to demonstrate mobile application vulnerabilities, insecure backend implementations, and realistic banking security scenarios.
-
-**VulnBank LAB — Learn by Testing. Understand by Exploiting. Secure by Design.**
-
----
-
-**Disclaimer:** VulnBank LAB is an intentionally vulnerable educational application. The author assumes no responsibility for misuse or deployment outside an authorized testing environment.
-## Copyright & Ownership
-
-**© 2026 Shams Samara. All Rights Reserved.**
-
-VulnBank LAB is an educational cybersecurity project developed by Shams Samara.
-
-All original source code, application designs, graphics, and documentation are protected by applicable copyright laws.
-
-No permission is granted to reproduce, modify, redistribute, or commercially exploit the original project without prior written authorization from the copyright holder.
-
-Third-party components remain subject to their respective licenses.
-
-**Created by SHAMS SAMARA**
